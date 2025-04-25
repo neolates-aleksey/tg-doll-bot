@@ -1,59 +1,95 @@
-# Telegram Doll Generator Bot
+# TG Doll Bot
 
-A Telegram bot that generates doll images based on user preferences using OpenAI's DALL-E 3 API.
+A Telegram bot that generates AI-powered image generation with user management and referral system.
 
 ## Features
 
-- Generate custom doll images with specified colors, styles, and accessories
-- Upload reference photos to guide the generation process
-- Customize box label and doll clothing
-- Free generation system with 2 initial generations
-- Referral system to earn more free generations
-- Interactive button-based interface
-- Support for Barbie and Bratz styles
+- 🎨 AI Image Generation using OpenAI's DALL-E
+- 👥 User Management System
+- 💰 Referral System with rewards
+- ⚙️ Admin Panel for bot management
+- 📊 Usage Statistics and Analytics
+- 🔒 Rate Limiting and Usage Quotas
+- 💳 Premium Features Support
+
+## Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+- Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
+- OpenAI API Key
 
 ## Setup
 
-1. Clone this repository
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/tg-doll-bot.git
+cd tg-doll-bot
+```
+
 2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env` file in the root directory with the following variables:
 
-   ```
-   TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-   OPENAI_API_KEY=your_openai_api_key_here
-   BOT_USERNAME=your_bot_username_here
-   ```
+```bash
+npm install
+```
 
-   - Get your Telegram bot token from [@BotFather](https://t.me/botfather)
-   - Get your OpenAI API key from [OpenAI Platform](https://platform.openai.com)
-   - Set your bot username (without @) in the BOT_USERNAME variable
+3. Create a `.env` file based on `.env.example`:
 
-4. Start the bot:
-   ```bash
-   node index.js
-   ```
+```bash
+cp .env.example .env
+```
 
-## Usage
+4. Configure your environment variables in `.env`:
 
-1. Start the bot by sending `/start` command
-2. Click "Начать" to begin generating a doll
-3. Upload 2-3 reference photos and click "Продолжить"
-4. Follow the prompts to specify:
-   - Box color
-   - Doll style (Barbie or Bratz)
-   - Accessories
-   - Box label text
-   - Doll clothing description
-5. Wait for the generated image
-6. Use "Реферальная система" button to share your referral link and earn more generations
+- `TELEGRAM_BOT_TOKEN`: Your Telegram bot token from [@BotFather](https://t.me/BotFather)
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `DATABASE_PATH`: Path to SQLite database file (default: ./data/bot.db)
+- `FREE_GENERATIONS_LIMIT`: Number of free generations per user (default: 5)
 
-## Note
+5. Initialize the database:
 
-- Each user starts with 2 free generations
-- Sharing your referral link and having someone start the bot using it will give you 1 additional free generation
-- The bot uses OpenAI's DALL-E 3 model for image generation
-- Reference photos help guide the generation process for better results
-- You can go back to previous steps using the "Back" button
+```bash
+npm run init-db
+```
+
+6. Start the bot:
+
+```bash
+npm start
+```
+
+## Development
+
+- `npm run dev`: Start in development mode with hot reload
+- `npm test`: Run tests
+- `npm run lint`: Run linter
+- `npm run init-db`: Initialize the database
+
+## Bot Commands
+
+- `/start` - Start the bot and get welcome message
+- `/help` - Show help information
+- `/generate <prompt>` - Generate an image based on your prompt
+- `/balance` - Check your generation credits
+- `/referral` - Get your referral link
+- `/stats` - View your generation statistics
+
+## Admin Commands
+
+- `/admin` - Access admin panel
+- `/users` - View user statistics
+- `/broadcast` - Send message to all users
+- `/addcredits <user_id> <amount>` - Add credits to user
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
