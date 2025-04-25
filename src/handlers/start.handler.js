@@ -1,4 +1,7 @@
 const User = require("../models/database/user.model");
+const fs = require("fs");
+const openAIService = require("../services/openai.service");
+const path = require("path");
 
 class StartHandler {
   async handle(msg, match) {
@@ -31,16 +34,70 @@ class StartHandler {
         }
       }
 
-      const message = `Привет! В этом боте вы можете сгенерировать куклу в любом стиле и цвете и с любыми аксессуарами. У вас ${user.freeGenerations} бесплатных генераций. Чтобы добавить больше, вы можете пригласить друзей по кнопке ниже.`;
+      const response = await openAIService.generateImage("generate doll with red hair");
+      const imageUrl = response.data[0].url;
+      await this.bot.sendPhoto(chatId, imageUrl);
 
+      const message = `
+Этот бот создаёт уникальных кукол по твоему описанию
+
+🎁 Количество твоих генераций: <b>${user.freeGenerations}</b>
+✨ Хочешь больше?
+- Пригласи друзей (+1 за каждого)
+- Купи нужное количество генераций
+
+👇 Опиши куклу — и получи шедевр!
+`;
+
+      // Пути к изображениям (замените на реальные пути к вашим изображениям)
+      const image1Path = path.join(__dirname, "../assets/1.png");
+      const image2Path = path.join(__dirname, "../assets/2.png");
+
+      // Проверяем, существуют ли файлы
+      if (fs.existsSync(image1Path) && fs.existsSync(image2Path)) {
+        // Создаем массив медиа-объектов для sendMediaGroup
+        const mediaGroup = [
+          {
+            type: "photo",
+            media: fs.createReadStream(image1Path),
+            caption: message,
+            parse_mode: "HTML",
+          },
+          {
+            type: "photo",
+            media: fs.createReadStream(image2Path),
+          },
+        ];
+
+        // Отправляем группу медиафайлов
+        await this.bot.sendMediaGroup(chatId, mediaGroup);
+      } else {
+        // Если файлы не найдены, отправляем только текст с клавиатурой
+        const keyboard = {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "Начать", callback_data: "start_generation" }],
+              [{ text: "Реферальная система", callback_data: "referral_system" }],
+              [{ text: "Купить генерации", callback_data: "buy_generations" }],
+            ],
+          },
+        };
+
+        await this.bot.sendMessage(chatId, message, { ...keyboard, parse_mode: "HTML" });
+      }
+
+      // Отправляем клавиатуру отдельным сообщением, если отправляем медиагруппу
       const keyboard = {
         reply_markup: {
-          keyboard: [[{ text: "Начать" }], [{ text: "Реферальная система" }]],
-          resize_keyboard: true,
+          inline_keyboard: [
+            [{ text: "Начать", callback_data: "start_generation" }],
+            [{ text: "Реферальная система", callback_data: "referral_system" }],
+            [{ text: "Купить генерации", callback_data: "buy_generations" }],
+          ],
         },
       };
 
-      await this.bot.sendMessage(chatId, message, keyboard);
+      await this.bot.sendMessage(chatId, "Выберите действие:", keyboard);
     } catch (error) {
       console.error("Error in start handler:", error);
       await this.bot.sendMessage(chatId, "Извините, произошла ошибка. Пожалуйста, попробуйте позже.");

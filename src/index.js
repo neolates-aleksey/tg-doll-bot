@@ -20,11 +20,6 @@ initializeDatabase().catch(console.error);
 bot.onText(/\/start(.+)?/, async (msg, match) => {
   try {
     await startHandler.handle(msg, match);
-
-    const response = await openAIService.generateImage("сгенерируй куклу в стиле Барби");
-    console.log(response);
-    const imageUrl = response.data[0].url;
-    await bot.sendPhoto(chatId, imageUrl);
   } catch (error) {
     console.error("Error in start handler:", error);
     await bot.sendMessage(msg.chat.id, "Sorry, something went wrong. Please try again later.");
@@ -41,24 +36,43 @@ bot.onText(/\/generate/, async (msg) => {
   }
 });
 
-// Handle 'Start' button
-bot.onText(/^Начать$/, (msg) => {
-  const chatId = msg.chat.id;
+// Handle callback queries from inline buttons
+bot.on("callback_query", async (query) => {
+  const chatId = query.message.chat.id;
+  const data = query.data;
 
-  userModel.setUserState(chatId, {
-    step: "photos",
-    photos: [],
-  });
-  bot.sendMessage(chatId, "Пожалуйста, отправьте 2-3 фотографии для генерации куклы. После отправки всех фотографий, нажмите кнопку 'Продолжить'.");
+  try {
+    switch (data) {
+      case "start_generation":
+        // Имитируем нажатие кнопки "Начать"
+        userModel.setUserState(chatId, {
+          step: "photos",
+          photos: [],
+        });
+        await bot.sendMessage(chatId, "Отправьте 1-3 фотографии для генерации куклы. После отправки, нажмите кнопку <b>Продолжить</b>", {
+          parse_mode: "HTML",
+        });
 
-  const keyboard = {
-    reply_markup: {
-      keyboard: [[{ text: "Продолжить" }]],
-      resize_keyboard: true,
-    },
-  };
+        break;
 
-  bot.sendMessage(chatId, "Отправьте фотографии:", keyboard);
+      case "referral_system":
+        // Имитируем нажатие кнопки "Реферальная система"
+        const referralLink = `https://t.me/${process.env.TELEGRAM_USERNAME}?start=${chatId}`;
+        await bot.sendMessage(chatId, `За каждого приглашенного друга вы получаете 1 бесплатную генерацию. Ссылка для приглашения:\n${referralLink}`);
+        break;
+
+      case "buy_generations":
+        // Обработка кнопки "Купить генерации"
+        await bot.sendMessage(chatId, "Функция покупки генераций находится в разработке. Скоро будет доступна!");
+        break;
+    }
+
+    // Отвечам на callback query, чтобы убрать "часики" на кнопке
+    await bot.answerCallbackQuery(query.id);
+  } catch (error) {
+    console.error("Error handling callback query:", error);
+    await bot.sendMessage(chatId, "Извините, произошла ошибка. Пожалуйста, попробуйте позже.");
+  }
 });
 
 // Handle 'Referral' button
@@ -102,12 +116,12 @@ bot.on("photo", async (msg) => {
   userState.photos.push(photo.file_id);
   userModel.setUserState(chatId, userState);
 
-  const remainingPhotos = process.env.BOT_MIN_PHOTOS - userState.photos.length;
-
-  if (remainingPhotos > 0) {
-    bot.sendMessage(chatId, `Фотография получена! Отправьте еще ${remainingPhotos} фотографию(и) или нажмите 'Продолжить' для следующего шага.`);
-  } else {
-    bot.sendMessage(chatId, "Все фотографии получены! Нажмите 'Продолжить' для следующего шага.");
+  if (userState.photos.length === 1) {
+    bot.sendMessage(chatId, "Фотография получена! Отправьте еще 1-2 фотографию(и) или нажмите <b>Продолжить</b> для следующего шага.", {
+      parse_mode: "HTML",
+    });
+  } else if (userState.photos.length > 1) {
+    bot.sendMessage(chatId, "Все фотографии получены! Нажмите <b>Продолжить</b> для следующего шага.", { parse_mode: "HTML" });
   }
 });
 

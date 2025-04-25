@@ -24,8 +24,6 @@ class OpenAIService {
         prompt: prompt,
         n: 1,
         size: "1024x1024",
-        quality: "standard",
-        style: "vivid",
       });
 
       if (!response.data || !response.data[0] || !response.data[0].url) {
