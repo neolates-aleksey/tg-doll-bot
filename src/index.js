@@ -5,6 +5,7 @@ const startHandler = require("./handlers/start.handler");
 const generationHandler = require("./handlers/generation.handler");
 const openAIService = require("./services/openai.service");
 const userModel = require("./models/user.model");
+const databaseService = require("./services/database.service");
 
 // Initialize bot
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
@@ -22,7 +23,10 @@ bot.onText(/\/start(.+)?/, async (msg, match) => {
     await startHandler.handle(msg, match);
   } catch (error) {
     console.error("Error in start handler:", error);
-    await bot.sendMessage(msg.chat.id, "Sorry, something went wrong. Please try again later.");
+    await bot.sendMessage(
+      msg.chat.id,
+      "Sorry, something went wrong. Please try again later."
+    );
   }
 });
 
@@ -32,7 +36,10 @@ bot.onText(/\/generate/, async (msg) => {
     await generationHandler.handle(msg);
   } catch (error) {
     console.error("Error in generate handler:", error);
-    await bot.sendMessage(msg.chat.id, "Sorry, something went wrong. Please try again later.");
+    await bot.sendMessage(
+      msg.chat.id,
+      "Sorry, something went wrong. Please try again later."
+    );
   }
 });
 
@@ -44,26 +51,45 @@ bot.on("callback_query", async (query) => {
   try {
     switch (data) {
       case "start_generation":
+        // Проверяем количество доступных генераций
+        const user = await databaseService.getUser(chatId);
+        if (user.freeGenerations <= 0) {
+          await bot.sendMessage(
+            chatId,
+            `У вас закончились бесплатные генерации. Вы можете:\n1. Пригласить друзей (за каждого +1 генерация)\n2. Купить дополнительные генерации\n\nВаша реферальная ссылка: https://t.me/${process.env.BOT_USERNAME}?start=${chatId}`
+          );
+          return;
+        }
+
         // Имитируем нажатие кнопки "Начать"
         userModel.setUserState(chatId, {
           step: "photos",
           photos: [],
         });
-        await bot.sendMessage(chatId, "Отправьте 1-3 фотографии для генерации куклы. После отправки, нажмите кнопку <b>Продолжить</b>", {
-          parse_mode: "HTML",
-        });
-
+        await bot.sendMessage(
+          chatId,
+          "Отправьте одну фотографию для генерации куклы. После отправки, нажмите кнопку <b>Продолжить</b>",
+          {
+            parse_mode: "HTML",
+          }
+        );
         break;
 
       case "referral_system":
         // Имитируем нажатие кнопки "Реферальная система"
-        const referralLink = `https://t.me/${process.env.TELEGRAM_USERNAME}?start=${chatId}`;
-        await bot.sendMessage(chatId, `За каждого приглашенного друга вы получаете 1 бесплатную генерацию. Ссылка для приглашения:\n${referralLink}`);
+        const referralLink = `https://t.me/${process.env.BOT_USERNAME}?start=${chatId}`;
+        await bot.sendMessage(
+          chatId,
+          `За каждого приглашенного друга вы получаете 1 бесплатную генерацию. Ссылка для приглашения:\n${referralLink}`
+        );
         break;
 
       case "buy_generations":
         // Обработка кнопки "Купить генерации"
-        await bot.sendMessage(chatId, "Функция покупки генераций находится в разработке. Скоро будет доступна!");
+        await bot.sendMessage(
+          chatId,
+          "Функция покупки генераций находится в разработке. Скоро будет доступна!"
+        );
         break;
     }
 
@@ -71,15 +97,11 @@ bot.on("callback_query", async (query) => {
     await bot.answerCallbackQuery(query.id);
   } catch (error) {
     console.error("Error handling callback query:", error);
-    await bot.sendMessage(chatId, "Извините, произошла ошибка. Пожалуйста, попробуйте позже.");
+    await bot.sendMessage(
+      chatId,
+      "Извините, произошла ошибка. Пожалуйста, попробуйте позже."
+    );
   }
-});
-
-// Handle 'Referral' button
-bot.onText(/^Реферальная система$/, (msg) => {
-  const chatId = msg.chat.id;
-  const referralLink = `https://t.me/${process.env.TELEGRAM_USERNAME}?start=${chatId}`;
-  bot.sendMessage(chatId, `За каждого приглашенного друга вы получаете 1 бесплатную генерацию. Ссылка для приглашения:\n${referralLink}`);
 });
 
 // Handle 'Continue' button after photos
@@ -89,8 +111,11 @@ bot.onText(/^Продолжить$/, (msg) => {
 
   if (!userState || userState.step !== "photos") return;
 
-  if (userState.photos.length < process.env.BOT_MIN_PHOTOS) {
-    bot.sendMessage(chatId, "Пожалуйста, отправьте минимум 2 фотографии перед продолжением.");
+  if (userState.photos.length !== 1) {
+    bot.sendMessage(
+      chatId,
+      "Пожалуйста, отправьте одну фотографию перед продолжением."
+    );
     return;
   }
 
@@ -106,23 +131,35 @@ bot.on("photo", async (msg) => {
 
   if (!userState || userState.step !== "photos") return;
 
-  if (userState.photos.length >= process.env.BOT_MAX_PHOTOS) {
-    bot.sendMessage(chatId, "Вы уже отправили максимальное количество фотографий (3). Нажмите 'Продолжить' для следующего шага.");
+  if (userState.photos.length >= 1) {
+    bot.sendMessage(
+      chatId,
+      "Вы уже отправили фотографию. Нажмите 'Продолжить' для следующего шага."
+    );
     return;
   }
 
   // Get the file_id of the largest photo (best quality)
   const photo = msg.photo[msg.photo.length - 1];
+  console.log(photo);
   userState.photos.push(photo.file_id);
+  userState.step = "color";
   userModel.setUserState(chatId, userState);
 
-  if (userState.photos.length === 1) {
-    bot.sendMessage(chatId, "Фотография получена! Отправьте еще 1-2 фотографию(и) или нажмите <b>Продолжить</b> для следующего шага.", {
-      parse_mode: "HTML",
-    });
-  } else if (userState.photos.length > 1) {
-    bot.sendMessage(chatId, "Все фотографии получены! Нажмите <b>Продолжить</b> для следующего шага.", { parse_mode: "HTML" });
-  }
+  const prompt =
+    'Создай куклу по моему фото. Кукла в полный рост и находится внутри коробки. Коробка выполнена из цвета: серый, её переднюю часть покрывает прозрачный пластик. Стиль куклы — Barbie. B коробке рядом c куклой размести аксессуары: макбук, телефон. Надпись на верхней части коробки: "леха". Одежда куклы: черные штаны, черная футболка.';
+
+  const response = await openAIService.generateImage(prompt, photo.file_id);
+
+  const imageUrl = response;
+
+  await this.bot.sendPhoto(chatId, imageUrl);
+  // console.log(response);
+
+  bot.sendMessage(
+    chatId,
+    "Фотография получена! Напиши цвет коробки в которой будет лежать кукла"
+  );
 });
 
 // Handle text messages for different steps
@@ -157,19 +194,23 @@ bot.on("message", async (msg) => {
       },
     };
 
-    bot.sendMessage(chatId, "Напиши любые аксессуары через запятую. Советуем вводить не более 5-ти аксессуаров", keyboard);
+    bot.sendMessage(
+      chatId,
+      "Напиши любые аксессуары через запятую. Советуем вводить не более 5-ти аксессуаров",
+      keyboard
+    );
   } else if (userState.step === "accessories") {
-    if (msg.text === "Back") {
-      userModel.deleteUserState(chatId);
-      const keyboard = {
-        reply_markup: {
-          keyboard: [[{ text: "Начать" }], [{ text: "Реферальная система" }]],
-          resize_keyboard: true,
-        },
-      };
-      bot.sendMessage(chatId, "Выберите опцию:", keyboard);
-      return;
-    }
+    // if (msg.text === "Back") {
+    //   userModel.deleteUserState(chatId);
+    //   const keyboard = {
+    //     reply_markup: {
+    //       keyboard: [[{ text: "Начать" }], [{ text: "Реферальная система" }]],
+    //       resize_keyboard: true,
+    //     },
+    //   };
+    //   bot.sendMessage(chatId, "Выберите опцию:", keyboard);
+    //   return;
+    // }
 
     userState.accessories = msg.text;
     userState.step = "label";
@@ -186,7 +227,10 @@ bot.on("message", async (msg) => {
     if (msg.text === "Back") {
       userState.step = "accessories";
       userModel.setUserState(chatId, userState);
-      bot.sendMessage(chatId, "Напиши любые аксессуары через запятую. Советуем вводить не более 5-ти аксессуаров");
+      bot.sendMessage(
+        chatId,
+        "Напиши любые аксессуары через запятую. Советуем вводить не более 5-ти аксессуаров"
+      );
       return;
     }
 
